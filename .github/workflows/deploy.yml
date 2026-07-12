@@ -53,9 +53,9 @@ jobs:
               # 1. 补全依赖
               flutter pub get
               
-              # 2. 编译 ARM64 APK 并移动重命名
+              # 2. 编译 ARM64 APK 并移动重命名（改为复制实际生成的 app-release.apk）
               flutter build apk --release --target-platform android-arm64
-              cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk ../../build/deploy_site/downloads/${p_name}-arm64.apk
+              cp build/app/outputs/flutter-apk/app-release.apk ../../build/deploy_site/downloads/${p_name}-arm64.apk
               
               # 3. 编译 Web 并移动（注意：请将下面的 YOUR_REPO_NAME 改为你真实的 GitHub 仓库名！）
               flutter build web --release --base-href "/fluttershow/web_subprojects/${p_name}/"
