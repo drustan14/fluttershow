@@ -39,6 +39,7 @@ jobs:
           mkdir -p build/deploy_site/web_subprojects
 
       # 【核心】循环编译 projects 目录下的所有子项目
+      # 【彻底修复版】循环编译 projects 目录下的所有子项目
       - name: Loop and Build All Flutter Projects
         run: |
           for project in projects/*; do
@@ -48,19 +49,24 @@ jobs:
               echo "正在全自动化打包项目: $p_name"
               echo "=========================================="
               
-              cd "$project"
-              
               # 1. 补全依赖
+              cd "$project"
               flutter pub get
               
-              # 2. 编译 ARM64 APK 并移动重命名（改为复制实际生成的 app-release.apk）
+              # 2. 编译 ARM64 APK
               flutter build apk --release --target-platform android-arm64
+              # 精准复制 APK，确保它只去取绝对路径下的产物
               cp build/app/outputs/flutter-apk/app-release.apk ../../build/deploy_site/downloads/${p_name}-arm64.apk
               
-              # 3. 编译 Web 并移动（注意：请将下面的 YOUR_REPO_NAME 改为你真实的 GitHub 仓库名！）
-              flutter build web --release --base-href "/fluttershow/web_subprojects/${p_name}/"
+              # 3. 编译 Web 网页（记得将下面的 YOUR_REPO_NAME 改为你真实的 GitHub 仓库名！）
+              flutter build web --release --base-href "/YOUR_REPO_NAME/web_subprojects/${p_name}/"
+              
+              # 【核心修复点】创建专属的子项目网页目录，并“只”复制 build/web 下的内容
               mkdir -p ../../build/deploy_site/web_subprojects/${p_name}
-              cp -r build/web/* ../../build/deploy_site/web_subprojects/${p_name}/
+              cp -R build/web/. ../../build/deploy_site/web_subprojects/${p_name}/
+              
+              # 4. 打扫战场：清理当前项目的 build 缓存，防止下一个项目循环时发生文件混淆
+              flutter clean
               
               cd ../..
             fi
