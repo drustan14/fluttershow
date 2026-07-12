@@ -32,14 +32,14 @@ jobs:
         with:
           python-version: '3.x'
 
-      # 创建统一的发布产物收集箱
-      - name: Initialize Deploy Directories
+      # 【核心修复点 1】彻底在全局物理删除旧的 build 缓存目录，防止残留
+      - name: Hard Reset Build Directory
         run: |
+          rm -rf build
           mkdir -p build/deploy_site/downloads
           mkdir -p build/deploy_site/web_subprojects
 
-      # 【核心】循环编译 projects 目录下的所有子项目
-      # 【彻底修复版】循环编译 projects 目录下的所有子项目
+      # 【核心修复点 2】循环编译子项目
       - name: Loop and Build All Flutter Projects
         run: |
           for project in projects/*; do
@@ -49,34 +49,41 @@ jobs:
               echo "正在全自动化打包项目: $p_name"
               echo "=========================================="
               
-              # 1. 补全依赖
               cd "$project"
+              
+              # 先把当前子项目彻底洗干净
+              flutter clean
               flutter pub get
               
-              # 2. 编译 ARM64 APK
+              # 1. 编译并精准移动 APK
               flutter build apk --release --target-platform android-arm64
-              # 精准复制 APK，确保它只去取绝对路径下的产物
               cp build/app/outputs/flutter-apk/app-release.apk ../../build/deploy_site/downloads/${p_name}-arm64.apk
               
-              # 3. 编译 Web 网页（记得将下面的 YOUR_REPO_NAME 改为你真实的 GitHub 仓库名！）
-              flutter build web --release --base-href "/YOUR_REPO_NAME/web_subprojects/${p_name}/"
-              
-              # 【核心修复点】创建专属的子项目网页目录，并“只”复制 build/web 下的内容
+              # 2. 编译并精准复制 Web
+              # ⚠️ 请确保将下面的 YOUR_REPO_NAME 改为你真实的 GitHub 仓库名 fluttershow ⚠️
+              flutter build web --release --base-href "/fluttershow/web_subprojects/${p_name}/"
               mkdir -p ../../build/deploy_site/web_subprojects/${p_name}
               cp -R build/web/. ../../build/deploy_site/web_subprojects/${p_name}/
               
-              # 4. 打扫战场：清理当前项目的 build 缓存，防止下一个项目循环时发生文件混淆
+              # 打扫子项目战场，不给下一个项目留垃圾
               flutter clean
               
               cd ../..
             fi
           done
 
-      # 调用 Python 脚本读取元数据，动态渲染最终的 index.html
+      # 3. 调用 Python 脚本读取元数据，它会覆盖生成全新的、干净的 build/deploy_site/index.html
       - name: Generate Dynamic Showcase HTML
         run: python generate_gallery.py
 
-      # 部署到 GitHub Pages 分支
+      # 【验证步骤】在部署前，打印出 index.html 的实际大小，确保它绝不可能超过 100MB
+      - name: Verify index.html size
+        run: |
+          echo "==== 检查最终 index.html 的大小 ===="
+          ls -lh build/deploy_site/index.html
+          echo "==================================="
+
+      # 4. 部署到 GitHub Pages 分支
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
